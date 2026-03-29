@@ -273,7 +273,7 @@ client.on('messageCreate', async message => {
         const amount = parseInt(args[1]); // Lấy số tiền ở vị trí thứ 2 sau lệnh
 
         if (!target || isNaN(amount) || amount <= 0) {
-            return message.reply("Gõ sai rồi sếp! Cú pháp chuẩn: `f!addmoney @ai_đó <số_tiền>`");
+            return message.reply(`Gõ sai rồi sếp! Cú pháp chuẩn: \`${prefix}addmoney @ai_đó <số_tiền>\``);
         }
 
         // Tìm ví của người đó trên mây
@@ -301,7 +301,40 @@ client.on('messageCreate', async message => {
 
         message.reply(`🔥 **Clearrr!** Toàn bộ tài sản của ${target.username} đã bị kho bạc nhà nước tịch thu. Số dư hiện tại: **0 đồng**! Trắng tay!`);
     }
+
+
+// ----- LỆNH BẢNG PHONG THẦN (f!top) -----
+    if (command === 'top') {
+        // Chạy lên MongoDB tìm 10 người giàu nhất, sắp xếp lượng tiền giảm dần (-1)
+        const topUsers = await User.find({ money: { $gt: 0 } }).sort({ money: -1 }).limit(10);
+
+        if (topUsers.length === 0) {
+            return message.reply("Chúng ta quá nghèo, chưa có ai kiếm được đồng nào để lên tivi cả!");
+        }
+
+        const embed = new EmbedBuilder()
+            .setTitle('🏆 BẢNG PHONG THẦN TÀI PHIỆT 🏆')
+            .setDescription('Top 10 đại gia nắm trùm kinh tế của Địa Đạo hiện tại:')
+            .setColor('#FFD700') // Màu vàng hoàng kim cho nó sang
+            .setThumbnail(client.user.displayAvatarURL());
+
+        let leaderboard = '';
+        for (let i = 0; i < topUsers.length; i++) {
+            // Trao huy chương cho top 3
+            let medal = '🏅';
+            if (i === 0) medal = '🥇';
+            if (i === 1) medal = '🥈';
+            if (i === 2) medal = '🥉';
+
+            // Dùng <@ID> để Discord tự động hiển thị tên người dùng mà không Ping làm phiền họ
+            // Hàm toLocaleString('vi-VN') giúp số tiền có dấu chấm cho dễ đọc (VD: 100.000 thay vì 100000)
+            leaderboard += `${medal} **#${i + 1}** | <@${topUsers[i].userId}> ➪ **${topUsers[i].money.toLocaleString('vi-VN')} đồng**\n\n`;
+        }
+
+        embed.addFields({ name: '--- Danh Sách Tỷ Phú ---', value: leaderboard });
+        embed.setFooter({ text: 'Chăm chỉ cày cuốc f!daily hoặc khô máu sòng bài để leo rank nhé!' });
+
+        await message.reply({ embeds: [embed] });
+    }
 });
-
-
 client.login(process.env.TOKEN);
