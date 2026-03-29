@@ -139,7 +139,7 @@ client.on('messageCreate', async message => {
     }
 
     if (amount > MAX_BET) {
-        return message.reply(`⚠️ Sòng bạc chỉ nhận tối đa **${MAX_BET.toLocaleString('vi-VN')} đồng** mỗi ván thôi. Cược ít lại cho bền!`);
+        return message.reply(`⚠️ Sòng bạc chỉ nhận tối đa **${MAX_BET.toLocaleString('vi-VN')} đồng** mỗi ván!`);
     }
 
     if (userData.money < amount) {
@@ -147,7 +147,7 @@ client.on('messageCreate', async message => {
     }
     //luật gắt hơn để tránh bị lạm dụng, nếu muốn chơi lớn thì cứ chơi nhiều ván nhỏ vậy
         if (!cuoc || isNaN(cuoc) || cuoc <= 0) return message.reply(`Cược bao nhiêu tiền? Gõ: \`${prefix}bj <số_tiền>\``);
-        if (userData.money < cuoc) return message.reply(`Ví bạn còn có **${userData.money} đồng**, tiền đâu mà đòi chơi sộp?`);
+        if (userData.money < cuoc) return message.reply(`Ví bạn còn có **${userData.money} đồng**, tiền đâu mà đòi chơi ?`);
 
         // Thu tiền cược ngay
         userData.money -= cuoc;
