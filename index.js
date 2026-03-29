@@ -54,10 +54,10 @@ client.on('messageCreate', async message => {
             const timeLeft = cooldownTime - (now - userData.lastDaily);
             const hours = Math.floor(timeLeft / (1000 * 60 * 60));
             const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-            return message.reply(`Định bòn rút ngân sách à? Phải đợi **${hours} giờ ${minutes} phút** nữa mới được nhận tiếp!`);
+            return message.reply(`Định bòn rút ngân sách à? Phải đợi **${hours} giờ ${minutes} phút** nữa mới được nhận tiếp em nhé!`);
         }
 
-        const luong = Math.floor(Math.random() * 2000) + 1000; 
+        const luong = Math.floor(Math.random() * 100) + 1000; 
         userData.money += luong; 
         userData.lastDaily = now; 
         
@@ -217,9 +217,9 @@ client.on('messageCreate', async message => {
             .setCustomId('shop_menu')
             .setPlaceholder('Chọn món hàng bạn muốn mua...')
             .addOptions(
-                new StringSelectMenuOptionBuilder().setLabel('Role: Dawn').setDescription('Giá: 50,000 đồng').setValue('role_daigia'),
-                new StringSelectMenuOptionBuilder().setLabel('Role: Dusk').setDescription('Giá: 100,000 đồng').setValue('role_trumbai'),
-                new StringSelectMenuOptionBuilder().setLabel('Role: Lọ vương').setDescription('Giá: 200,000 đồng').setValue('role_huy_diet')
+                new StringSelectMenuOptionBuilder().setLabel('Phắc boiz 😼').setDescription('Giá: 30,000 đồng').setValue('role_phacboiz'),
+                new StringSelectMenuOptionBuilder().setLabel('Chúa tể xamlin    🗡').setDescription('Giá: 100,000 đồng').setValue('role_chuatexmlin'),
+                new StringSelectMenuOptionBuilder().setLabel('Ma Vương chubby').setDescription('Giá: 250.000').setValue('role_mavuongchubby')
             );
 
         const row = new ActionRowBuilder().addComponents(select);
@@ -235,15 +235,15 @@ client.on('messageCreate', async message => {
             let roleName = '';
 
             // NHỚ ĐỔI ID ROLE CỦA BẠN VÀO ĐÂY:
-            if (i.values[0] === 'role_daigia') { price = 50000; roleId = 'ID_ROLE_1_CỦA_BẠN'; roleName = 'Đại Gia Địa Đạo'; } 
-            else if (i.values[0] === 'role_trumbai') { price = 100000; roleId = 'ID_ROLE_2_CỦA_BẠN'; roleName = 'Trùm Sòng Bạc'; } 
-            else if (i.values[0] === 'role_huy_diet') { price = 200000; roleId = 'ID_ROLE_3_CỦA_BẠN'; roleName = 'Kẻ Hủy Diệt Số Dư'; }
+            if (i.values[0] === 'role_phacboiz') { price = 30000; roleId = '1131414140372664371'; roleName = 'Đại Gia Địa Đạo'; } 
+            else if (i.values[0] === 'role_chuatexmlin') { price = 100000; roleId = '1136322305740521513'; roleName = 'Chúa tể Xamlin'; } 
+            else if (i.values[0] === 'role_mavuongchubby') { price = 250000; roleId = '1487855184230224002'; roleName = 'Ma Vương Chubby'; }
 
             if (userData.money < price) {
-                return i.reply({ content: `Nghèo mà đòi làm sang! Bạn còn thiếu **${price - userData.money} đồng** nữa.`, ephemeral: true });
+                return i.reply({ content: `Chú em quá nghèo,chú em còn thiếu **${price - userData.money} đồng** nữa.`, ephemeral: true });
             }
 
-            if (i.member.roles.cache.has(roleId)) return i.reply({ content: 'Bạn có cái danh hiệu này rồi, mua làm gì nữa?', ephemeral: true });
+            if (i.member.roles.cache.has(roleId)) return i.reply({ content: 'Bạn đã sỡ hữu role này,vui lòng chọn role khác!', ephemeral: true });
 
             try {
                 userData.money -= price; 
@@ -259,5 +259,5 @@ client.on('messageCreate', async message => {
     }
 });
 
-// KHÔNG CẦN DÁN TOKEN VÀO ĐÂY NỮA, NÓ TỰ LẤY TỪ FILE .env
+
 client.login(process.env.TOKEN);
