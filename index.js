@@ -34,7 +34,9 @@ client.once('ready', () => {
 client.on('messageCreate', async message => {
     if (message.author.bot) return;
 
-    const prefix = 'f!';
+    // Lấy prefix từ file .env, nếu quên chưa cài thì mặc định là 'f!'
+    const prefix = process.env.PREFIX || 'f!';
+    if (!message.content.startsWith(prefix)) return;
     if (!message.content.startsWith(prefix)) return;
 
     const args = message.content.slice(prefix.length).trim().split(/ +/);
@@ -62,12 +64,12 @@ client.on('messageCreate', async message => {
         userData.lastDaily = now; 
         
         await userData.save(); // Lưu lên mây
-        message.reply(`Bạn vừa điểm danh thành công và nhận được **${luong} đồng**. Tiêu cho tiết kiệm vào! Số dư: **${userData.money} đồng**.`);
+        message.reply(`Bạn vừa điểm danh thành công và nhận được **${luong} đồng**. Số dư: **${userData.money} đồng**.`);
     }
 
     // ----- LỆNH XEM VÍ -----
     if (command === 'bal') {
-        message.reply(`Ví của bạn đang có: **${userData.money} đồng**. Nghèo thì ráng gõ f!daily nha!`);
+        message.reply(`Ví của bạn đang có: **${userData.money} đồng**. Đi làm chăm chỉ hoặc chơi game để kiếm thêm tiền nhé!`);
     }
 
     // ----- LỆNH ĂN CƯỚP (Luật Gắt) -----
@@ -109,7 +111,7 @@ client.on('messageCreate', async message => {
     // ----- LỆNH BLACKJACK -----
     if (command === 'bj') {
         const cuoc = parseInt(args[0]); 
-        if (!cuoc || isNaN(cuoc) || cuoc <= 0) return message.reply("Cược bao nhiêu tiền? Gõ: `f!bj <số_tiền>`");
+        if (!cuoc || isNaN(cuoc) || cuoc <= 0) return message.reply(`Cược bao nhiêu tiền? Gõ: \`${prefix}bj <số_tiền>\``);
         if (userData.money < cuoc) return message.reply(`Ví bạn còn có **${userData.money} đồng**, tiền đâu mà đòi chơi sộp?`);
 
         // Thu tiền cược ngay
@@ -313,7 +315,7 @@ client.on('messageCreate', async message => {
         }
 
         const embed = new EmbedBuilder()
-            .setTitle('🏆 BẢNG PHONG THẦN TÀI PHIỆT 🏆')
+            .setTitle('🏆 TOP ĐẠI GIA SERVER 🏆')
             .setDescription('Top 10 đại gia nắm trùm kinh tế của Địa Đạo hiện tại:')
             .setColor('#FFD700') // Màu vàng hoàng kim cho nó sang
             .setThumbnail(client.user.displayAvatarURL());
@@ -333,6 +335,51 @@ client.on('messageCreate', async message => {
 
         embed.addFields({ name: '--- Danh Sách Tỷ Phú ---', value: leaderboard });
         embed.setFooter({ text: 'Chăm chỉ cày cuốc f!daily hoặc khô máu sòng bài để leo rank nhé!' });
+
+        await message.reply({ embeds: [embed] });
+    }
+    // ----- LỆNH CHUYỂN KHOẢN (f!pay hoặc f!give) -----
+    if (command === 'pay' || command === 'give') {
+        const target = message.mentions.users.first();
+        const amount = parseInt(args[1]);
+
+        if (!target) return message.reply(`Sai cú pháp! VD: \`${prefix}pay @ai_đó 5000\``);
+        if (target.id === userId) return message.reply(`Sai cú pháp! Bạn không thể tự chuyển tiền cho chính mình!`);
+        if (target.bot) return message.reply("Bot không xài tiền trần gian, tha cho nó đi!");
+        if (!amount || isNaN(amount) || amount <= 0) return message.reply("Số tiền không hợp lệ! Nhập số tiền đàng hoàng vào.");
+
+        // Kiểm tra số dư người gửi
+        if (userData.money < amount) {
+            return message.reply(`Ví bạn chỉ còn **${userData.money.toLocaleString('vi-VN')} đồng**, không đủ ngân sách để chuyển **${amount.toLocaleString('vi-VN')} đồng**!`);
+        }
+
+        // Áp dụng thuế phí 2% để kiểm soát lạm phát vĩ mô
+        const tax = Math.floor(amount * 0.02);
+        const actualReceived = amount - tax;
+
+        // Lấy dữ liệu người nhận từ MongoDB
+        let targetData = await User.findOne({ userId: target.id });
+        if (!targetData) targetData = await User.create({ userId: target.id });
+
+        // Trừ tiền người gửi, cộng tiền người nhận
+        userData.money -= amount;
+        targetData.money += actualReceived;
+
+        await userData.save();
+        await targetData.save();
+
+        message.reply(`💸 Giao dịch thành công! Bạn đã chuyển **${amount.toLocaleString('vi-VN')} đồng** cho ${target.username}.\n*(Ngân hàng Trung ương thu phí giao dịch 2% là **${tax.toLocaleString('vi-VN')} đồng**, người nhận thực lãnh **${actualReceived.toLocaleString('vi-VN')} đồng**).*`);
+    }
+    // ----- LỆNH HƯỚNG DẪN (Bản Prefix Động) -----
+    if (command === 'help') {
+        const embed = new EmbedBuilder()
+            .setTitle('📌 DANH SÁCH LỆNH')
+            .setColor('#2ecc71')
+            .addFields(
+                { name: '💰 Kinh tế', value: `\`${prefix}bal\` - Xem số dư ví\n\`${prefix}daily\` hoặc \`${prefix}work\` - Nhận lương (mỗi 24h)\n\`${prefix}pay @user <số_tiền>\` - Chuyển khoản\n\`${prefix}top\` - Bảng xếp hạng đại gia` },
+                { name: '🎲 Giải trí & Mua sắm', value: `\`${prefix}bj <số_tiền>\` - Đánh Blackjack\n\`${prefix}rob @user\` - Ăn cướp\n\`${prefix}shop\` - Mua Role` },
+                { name: '🛠️ Admin', value: `\`${prefix}addmoney @user <số_tiền>\` - Bơm tiền\n\`${prefix}resetmoney @user\` - Reset ví về 0` }
+            );
 
         await message.reply({ embeds: [embed] });
     }
