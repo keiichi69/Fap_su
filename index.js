@@ -2,6 +2,8 @@ require('dotenv').config(); // Bùa chú giấu Token
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
 const mongoose = require('mongoose');
 const express = require('express');
+const axios = require('axios'); 
+
 
 // --- 1. MÁY THỞ CHO RENDER (Chống ngủ 24/7) ---
 const app = express();
@@ -19,10 +21,20 @@ mongoose.connect(process.env.MONGO_URI)
     .catch(err => console.error('[LỖI] Không thể kết nối MongoDB:', err));
 
 // Tạo khuôn mẫu sổ nợ trên mây
+// Tạo khuôn mẫu sổ nợ trên mây (Đã mở rộng thêm Balo Pokemon)
 const UserSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true },
     money: { type: Number, default: 0 },
-    lastDaily: { type: Number, default: 0 }
+    lastDaily: { type: Number, default: 0 },
+    // --- NGĂN CHỨA POKEMON ---
+    pokedex: [{
+        pokeId: Number,   
+        name: String,     
+        rarity: String,   
+        bst: Number,      
+        sprite: String,   
+        caughtAt: { type: Number, default: Date.now } 
+    }]
 });
 const User = mongoose.model('User', UserSchema);
 
@@ -380,6 +392,201 @@ client.on('messageCreate', async message => {
                 { name: '🎲 Giải trí & Mua sắm', value: `\`${prefix}bj <số_tiền>\` - Đánh Blackjack\n\`${prefix}rob @user\` - Ăn cướp\n\`${prefix}shop\` - Mua Role` },
                 { name: '🛠️ Admin', value: `\`${prefix}addmoney @user <số_tiền>\` - Bơm tiền\n\`${prefix}resetmoney @user\` - Reset ví về 0` }
             );
+
+        await message.reply({ embeds: [embed] });
+    }
+    // ==========================================
+    // ----- KHU VỰC GACHA POKEMON (CHỐNG CHÁN) -----
+    // ==========================================
+   
+
+    // 1. Lệnh Quay Thẻ Bài (${prefix}catch hoặc ${prefix}gacha)
+    if (command === 'catch' || command === 'gacha') {
+        const catchCost = 10000; // Giá mỗi lần quay (Hút máu mạnh vào)
+
+        if (userData.money < catchCost) {
+            return message.reply(`Nghèo mà đòi làm Huấn luyện viên? Cần **${catchCost.toLocaleString('vi-VN')} đồng** để mua Ball!`);
+        }
+
+        const msg = await message.reply('🎲 Đang ném Ball, cầu nguyện nhân phẩm đi...');
+
+        try {
+            // Quay số ngẫu nhiên ID Pokemon (Gen 1 đến Gen 9 hiện tại)
+            const randomId = Math.floor(Math.random() * 1025) + 1;
+            
+            // Gọi lên PokeAPI lấy thông tin
+            const response = await axios.get(`https://pokeapi.co/api/v2/pokemon/${randomId}`);
+            const data = response.data;
+
+            // Tính toán Base Stat Total (BST) - Tổng sức mạnh làm căn cứ tính tiền
+            const bst = data.stats.reduce((sum, stat) => sum + stat.base_stat, 0);
+
+            // Viết hoa chữ cái đầu tên cho đẹp
+            const pokeName = data.name.charAt(0).toUpperCase() + data.name.slice(1);
+
+            // Phân loại độ hiếm dựa trên chỉ số (Cân bằng kinh tế)
+            let rarity = '🟤 COMMON'; // BST < 420 (Loss)
+            let color = '#7f8c8d';
+            if (bst >= 420 && bst < 530) { rarity = '🔵 RARE'; color = '#3498db'; } // BST 420-530 (Small Loss)
+            if (bst >= 530 && bst < 600) { rarity = '🟣 EPIC'; color = '#9b59b6'; } // BST 530-600 (Break even)
+            if (bst >= 600) { rarity = '🟡 LEGENDARY'; color = '#f1c40f'; } // BST > 600 (Win)
+
+            // Lấy ảnh chính thức từ API
+            const spriteUrl = data.sprites.other['official-artwork'].front_default || data.sprites.front_default;
+
+            // Thu tiền người chơi
+            userData.money -= catchCost;
+
+            // Cất thẻ vào túi đồ trên mây
+            userData.pokedex.push({
+                pokeId: randomId,
+                name: pokeName,
+                rarity: rarity,
+                bst: bst,
+                sprite: spriteUrl,
+                caughtAt: Date.now()
+            });
+
+            // Nếu người chơi có số lượng pokemon lớn hơn 50, tự động bán con common/rare bst thấp nhất (Tùy chọn nâng cao)
+            // if (userData.pokedex.length > 50) { ... } 
+
+            await userData.save(); // Lưu tất cả lên mây
+
+            // Tạo bảng thông báo trúng thưởng rực rỡ
+            const embed = new EmbedBuilder()
+                .setTitle(`🎉 BẮT ĐƯỢC POKEMON! 🎉`)
+                .setDescription(`Bạn vừa chi **${catchCost.toLocaleString('vi-VN')} đồng** và nhận được:`)
+                .addFields(
+                    { name: `Tên: ${pokeName}`, value: `**BST:** ${bst}`, inline: true },
+                    { name: `Độ hiếm: ${rarity}`, value: `---`, inline: true },
+                    { name: '💰 Chỉ số', value: `Gõ \`${prefix}pokedex\` để xem danh sách`, inline: false }
+                )
+                .setImage(spriteUrl)
+                .setColor(color)
+                .setFooter({ text: 'Nhân phẩm không tốt thì gõ daily cày lại nhé!' });
+
+            await msg.edit({ content: ' ', embeds: [embed] });
+
+        } catch (error) {
+            console.error(error);
+            await msg.edit('💥 Lỗi hệ thống khi gọi PokeAPI, Ball đã được hoàn lại! Thử lại sau.');
+        }
+    }
+
+    // 2. Lệnh Kiểm Tra Balo (${prefix}pokedex hoặc ${prefix}inv)
+    if (command === 'pokedex' || command === 'inv' || command === 'balo') {
+        const pokedex = userData.pokedex;
+
+        if (pokedex.length === 0) {
+            return message.reply(`Balo trống không, gõ \`${prefix}catch\` để bắt vài con đi!`);
+        }
+
+        const embed = new EmbedBuilder()
+            .setTitle(`🎒 BALO POKEMON CỦA ${message.author.username.toUpperCase()} 🎒`)
+            .setDescription(`Liệt kê 20 Pokemon đầu tiên trong túi đồ của bạn:\nCú pháp bán: \`${prefix}sell <index>\``)
+            .setColor('#2ecc71');
+
+        let list = '';
+        // Hiển thị 20 con đầu tiên cho đỡ trôi tin nhắn
+        const displayLimit = Math.min(pokedex.length, 20); 
+
+        for (let i = 0; i < displayLimit; i++) {
+            const poke = pokedex[i];
+            
+            // Tính toán giá bán tương đối (Căn bằng kinh tế)
+            let sellPrice = 2000; // Common Sell Price
+            if (poke.bst >= 420 && poke.bst < 530) { sellPrice = 5000; } // Rare Sell Price
+            if (poke.bst >= 530 && poke.bst < 600) { sellPrice = 10000; } // Epic Sell Price
+            if (poke.bst >= 600) { sellPrice = 100000; } // Legendary Sell Price
+
+            list += `\`[${i + 1}]\` | **${poke.name}** - BST: ${poke.bst}\n└ Rarity: ${poke.rarity} | 💰 Giá bán: \`${sellPrice.toLocaleString('vi-VN')} đ\`\n\n`;
+        }
+
+        embed.addFields({ name: '--- Danh Sách ---', value: list });
+        if (pokedex.length > 20) {
+            embed.setFooter({ text: `Và ${pokedex.length - 20} con khác nữa đang nằm trong kho...` });
+        }
+
+        await message.reply({ embeds: [embed] });
+    }
+
+    // 3. Lệnh Bán Pokemon Lấy Tiền (${prefix}sellpokemon <index>)
+    if (command === 'sellpokemon' || command === 'sell') {
+        const index = parseInt(args[0]) - 1; // Lấy vị trí trong mảng (VD: 1 -> index 0)
+
+        if (isNaN(index) || index < 0 || index >= userData.pokedex.length) {
+            return message.reply(`Gõ sai rồi sếp! Cú pháp chuẩn: \`${prefix}sell <số_thứ_tự_trong_balo>\`. Xem số ở \`${prefix}pokedex\`.`);
+        }
+
+        // Lấy con Pokemon đó ra xem
+        const pokeToSell = userData.pokedex[index];
+
+        // LÔGIC TÍNH GIÁ BÁN (VÒNG LẶP KINH TẾ CHỐNG CHÁN)
+        let sellPrice = 2000; // Common Sell Price (Lỗ 80%)
+        if (pokeToSell.bst >= 420 && pokeToSell.bst < 530) { sellPrice = 5000; } // Rare Sell Price (Lỗ 50%)
+        if (pokeToSell.bst >= 530 && pokeToSell.bst < 600) { sellPrice = 10000; } // Epic Sell Price (Hòa vốn)
+        if (pokeToSell.bst >= 600) { sellPrice = 100000; } // Legendary Sell Price (Thắng đậm x10)
+
+        // Thực hiện giao dịch
+        userData.money += sellPrice; // Cộng tiền
+        userData.pokedex.splice(index, 1); // Xóa khỏi balo (Kỹ thuật mảng)
+
+        await userData.save(); // Lưu lên mây
+
+        message.reply(`💸 Giao dịch thành công! Bạn vừa bán thẻ bài **${pokeToSell.name}** và nhận được **${sellPrice.toLocaleString('vi-VN')} đồng**.`);
+    }
+    // ----- LỆNH FLEX POKEMON (Tìm theo STT hoặc TÊN) -----
+    if (command === 'flex' || command === 'show') {
+        if (!args[0]) {
+            return message.reply(`Bạn muốn khoe con nào? Gõ \`${prefix}flex <số_thứ_tự>\` hoặc \`${prefix}flex <tên_pokemon>\` nhé!`);
+        }
+
+        if (!userData.pokedex || userData.pokedex.length === 0) {
+            return message.reply("Balo của bạn đang trống không, lấy gì mà khoe?");
+        }
+
+        // Gộp tất cả các chữ người dùng gõ vào và chuyển thành chữ thường để dễ tìm kiếm
+        const query = args.join(' ').toLowerCase();
+        let poke = null;
+
+        // KỊCH BẢN 1: Người dùng gõ Số Thứ Tự (Ví dụ: f!flex 1)
+        if (!isNaN(query)) {
+            const index = parseInt(query) - 1;
+            if (index >= 0 && index < userData.pokedex.length) {
+                poke = userData.pokedex[index];
+            }
+        } 
+        // KỊCH BẢN 2: Người dùng gõ Tên (Ví dụ: f!flex pikachu)
+        else {
+            // Lục tung balo xem có con nào trùng tên không
+            poke = userData.pokedex.find(p => p.name.toLowerCase() === query);
+        }
+
+        // Nếu lục tung cả STT lẫn Tên mà vẫn không thấy
+        if (!poke) {
+            return message.reply(`Không tìm thấy con **${args.join(' ')}** nào trong balo của bạn! Gõ \`${prefix}pokedex\` để check lại hàng nhé.`);
+        }
+
+        // Phối màu viền Embed cho chuẩn hệ dân chơi
+        let color = '#7f8c8d'; // Màu xám cho Common
+        if (poke.rarity.includes('RARE')) color = '#3498db'; // Xanh biển
+        if (poke.rarity.includes('EPIC')) color = '#9b59b6'; // Tím mộng mơ
+        if (poke.rarity.includes('LEGENDARY')) color = '#f1c40f'; // Vàng hoàng kim lấp lánh
+
+        // Dịch thời gian bắt được sang giờ Việt Nam
+        const catchDate = new Date(poke.caughtAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+
+        const embed = new EmbedBuilder()
+            .setTitle(`✨ ${message.author.username} đang flex! ✨`)
+            .setDescription(`*"Tiến lên, **${poke.name}**!"*`)
+            .addFields(
+                { name: '🌟 Tier', value: poke.rarity, inline: true },
+                { name: '💪 Sức mạnh (BST)', value: `${poke.bst} điểm`, inline: true },
+                { name: '📅 Thu phục lúc', value: catchDate, inline: false }
+            )
+            .setImage(poke.sprite) 
+            .setColor(color)
+            .setThumbnail(message.author.displayAvatarURL()); 
 
         await message.reply({ embeds: [embed] });
     }
