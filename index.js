@@ -20,7 +20,7 @@ mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log('[HỆ THỐNG] Đã kết nối kho tiền MongoDB thành công!'))
     .catch(err => console.error('[LỖI] Không thể kết nối MongoDB:', err));
 
-// Tạo khuôn mẫu sổ nợ trên mây
+// Create Schema và Model cho MongoDB
 // Tạo khuôn mẫu sổ nợ trên mây (Đã mở rộng thêm Balo Pokemon)
 const UserSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true },
@@ -396,14 +396,30 @@ client.on('messageCreate', async message => {
             .setTitle('📌 DANH SÁCH LỆNH')
             .setColor('#2ecc71')
             .addFields(
-                { name: '💰 Kinh tế', value: `\`${prefix}bal\` - Xem số dư ví\n\`${prefix}daily\` hoặc \`${prefix}work\` - Nhận lương (mỗi 24h)\n\`${prefix}pay @user <số_tiền>\` - Chuyển khoản\n\`${prefix}top\` - Bảng xếp hạng đại gia` },
-                { name: '🎲 Giải trí & Mua sắm', value: `\`${prefix}bj <số_tiền>\` - Đánh Blackjack\n\`${prefix}rob @user\` - Ăn cướp\n\`${prefix}shop\` - Mua Role` },
-                { name: '🛠️ Admin', value: `\`${prefix}addmoney @user <số_tiền>\` - Bơm tiền\n\`${prefix}resetmoney @user\` - Reset ví về 0` }
-            );
+               { 
+                    name: '💰 Kinh tế & Xếp hạng', 
+                    value: `\`${prefix}bal\` - Kiểm tra ví tiền\n\`${prefix}daily\` - Nhận lương (24h/lần)\n\`${prefix}pay @user <tiền>\` - Chuyển tiền (Phí 2%)\n\`${prefix}top\` - Bảng vàng đại gia` 
+                },
+                { 
+                    name: '🎒 Pokemon Gacha (Mới)', 
+                    value: `\`${prefix}catch\` - Quay thẻ Pokemon (10k/lần)\n\`${prefix}inv\` - Xem túi đồ Pokemon\n\`${prefix}flex <stt/tên>\` - Khoe thẻ bài xịn\n\`${prefix}sell <stt>\` - Bán thẻ lấy tiền` 
+                },
+                { 
+                    name: '🎲 Giải trí', 
+                    value: `\`${prefix}bj <tiền>\` - Đánh bài Blackjack\n\`${prefix}rob @user\` - Móc túi người khác` 
+                },
+                { 
+                    name: '🛠️ Quản trị (Admin)', 
+                    value: `\`${prefix}blacklist\` - Chặn/Mở bot tại kênh này\n\`${prefix}addmoney @user <tiền>\` - Bơm tiền\n\`${prefix}resetmoney @user\` - Thu hồi tài sản` 
+                }
+            )
+            .setFooter({ text: `Prefix hiện tại là: ${prefix}` });
 
         await message.reply({ embeds: [embed] });
     }
-    // ==========================================
+            
+
+       //====================================
     // ----- KHU VỰC GACHA POKEMON (CHỐNG CHÁN) -----
     // ==========================================
    
