@@ -74,14 +74,14 @@ client.on('messageCreate', async message => {
     if (command === 'rob') {
         const victim = message.mentions.users.first(); 
         if (!victim) return message.reply("Bạn định cướp không khí à? Phải tag một người vào! Ví dụ: `f!rob @ai_đó`");
-        if (victim.id === userId) return message.reply("Tự cướp tiền của chính mình? Bạn lú quá rồi!");
-        if (victim.bot) return message.reply("Tha cho bot đi bạn ơi, nó làm gì có tiền mà cướp!");
+        if (victim.id === userId) return message.reply("Bạn không thể tự cướp chính mình!");
+        if (victim.bot) return message.reply("Tha cho bot đi bạn ơi,em nó làm gì có tiền mà cướp!");
 
         // Lấy dữ liệu nạn nhân từ mây
         let victimData = await User.findOne({ userId: victim.id });
         if (!victimData) victimData = await User.create({ userId: victim.id });
 
-        if (victimData.money < 100) return message.reply("Người này nghèo rớt mồng tơi, cướp họ mang nghiệp đấy, tha đi!");
+        if (victimData.money < 100) return message.reply("Đối tượng này quá nghèo, cướp họ mang nghiệp đấy, tha đi!");
         
         const percent = (Math.floor(Math.random() * 21) + 10) / 100;
         const tienDinhCuop = Math.floor(victimData.money * percent);
@@ -102,7 +102,7 @@ client.on('messageCreate', async message => {
             victimData.money += tienPhat;
             await victimData.save();
             await userData.save();
-            message.reply(`Úi chà! Bạn thò tay vào túi ${victim.username} định cướp thì bị tóm. Bị đấm sưng mỏ và nộp phạt **${tienPhat} đồng** cho nạn nhân!`);
+            message.reply(`Úi chà! Bạn thò tay vào túi ${victim.username} định cướp thì bị tóm. Bị ăn 1 chày và nộp phạt **${tienPhat} đồng** cho nạn nhân!`);
         }
     }
 
@@ -180,7 +180,7 @@ client.on('messageCreate', async message => {
             let resultMsg = '';
 
             if (reason === 'busted') {
-                resultMsg = '💥 BẠN ĐÃ THUA (Lố 21 điểm)! Kế toán lụm tiền!';
+                resultMsg = '💥 BẠN ĐÃ THUA (Vượt quá 21 điểm)! Bớt đỏ đen lại bạn êy!';
             } else {
                 while (dScore < 17) { dHand.push(getCard()); dScore = calcScore(dHand); }
 
@@ -208,9 +208,9 @@ client.on('messageCreate', async message => {
     // ----- LỆNH CỬA HÀNG ROLE -----
     if (command === 'shop') {
         const embed = new EmbedBuilder()
-            .setTitle('🛒 TIỆM TẠP HÓA ĐỊA ĐẠO')
+            .setTitle('🛒 Chợ Đen Địa Đạo')
             .setDescription('Dùng tiền tích góp để mua danh hiệu xịn xò nào bạn ơi!\nChọn món đồ bạn muốn mua ở menu bên dưới nhé.')
-            .setColor('#f1c40f')
+            .setColor('#7dd4ff')
             .setThumbnail(client.user.displayAvatarURL());
 
         const select = new StringSelectMenuBuilder()
@@ -250,12 +250,56 @@ client.on('messageCreate', async message => {
                 await userData.save(); // LƯU VÍ LÊN MÂY
 
                 await i.member.roles.add(roleId); 
-                await i.reply({ content: `🎉 Giao dịch thành công! Bạn đã chi **${price} đồng** để sở hữu danh hiệu **${roleName}**!` });
+                await i.reply({ content: `🎉 Giao dịch thành công! Bạn đã chi **${price} đồng** để mua role **${roleName}**!` });
             } catch (error) {
                 console.error(error);
                 await i.reply({ content: 'Lỗi rồi! Vui lòng thử lại sau.', ephemeral: true });
             }
         });
+    }
+
+    // ==========================================
+    // ----- KHU VỰC ĐỘC QUYỀN CHO ADMIN -----
+    // ==========================================
+    
+    // Kiểm tra xem người gõ lệnh có quyền Quản trị viên không
+    const isAdmin = message.member.permissions.has('Administrator');
+
+    // 1. Lệnh Bơm Tiền (f!addmoney @user số_tiền)
+    if (command === 'addmoney') {
+        if (!isAdmin) return message.reply("Bạn không đủ quyền hạn để sử dụng lệnh này!");
+        
+        const target = message.mentions.users.first();
+        const amount = parseInt(args[1]); // Lấy số tiền ở vị trí thứ 2 sau lệnh
+
+        if (!target || isNaN(amount) || amount <= 0) {
+            return message.reply("Gõ sai rồi sếp! Cú pháp chuẩn: `f!addmoney @ai_đó <số_tiền>`");
+        }
+
+        // Tìm ví của người đó trên mây
+        let targetData = await User.findOne({ userId: target.id });
+        if (!targetData) targetData = await User.create({ userId: target.id });
+
+        targetData.money += amount;
+        await targetData.save(); // Cập nhật lên MongoDB
+
+        message.reply(`💸 **BÙM!** Tổng tài vừa bơm nóng **${amount} đồng** vào két của ${target.username}. Tổng tài sản: **${targetData.money} đồng**.`);
+    }
+
+    // 2. Lệnh Tịch Thu Gia Sản (f!resetmoney @user)
+    if (command === 'resetmoney') {
+        if (!isAdmin) return message.reply("Bạn không đủ tuổi để thu hồi tài sản của người khác!");
+
+        const target = message.mentions.users.first();
+        if (!target) return message.reply("Muốn reset ai thì tag người đó vào! Cú pháp: `f!resetmoney @ai_đó`");
+
+        let targetData = await User.findOne({ userId: target.id });
+        if (!targetData) targetData = await User.create({ userId: target.id });
+
+        targetData.money = 0; // Chém thẳng tay về 0
+        await targetData.save(); // Cập nhật lên MongoDB
+
+        message.reply(`🔥 **Clearrr!** Toàn bộ tài sản của ${target.username} đã bị kho bạc nhà nước tịch thu. Số dư hiện tại: **0 đồng**! Trắng tay!`);
     }
 });
 
