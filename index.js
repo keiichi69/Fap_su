@@ -131,6 +131,21 @@ client.on('messageCreate', async message => {
     // ----- LỆNH BLACKJACK -----
     if (command === 'bj') {
         const cuoc = parseInt(args[0]); 
+        // --- KHU VỰC GIỚI HẠN CƯỢC (BẢN ĐÃ BỎ MIN) ---
+    const MAX_BET = 250000; // Vẫn nên giữ cái trần 500k để bảo vệ sòng bạc
+
+    if (isNaN(amount) || amount <= 0) {
+        return message.reply(`🚫 Nhập số tiền cược đàng hoàng vào sếp ơi!`);
+    }
+
+    if (amount > MAX_BET) {
+        return message.reply(`⚠️ Sòng bạc chỉ nhận tối đa **${MAX_BET.toLocaleString('vi-VN')} đồng** mỗi ván thôi. Cược ít lại cho bền!`);
+    }
+
+    if (userData.money < amount) {
+        return message.reply(`Ví còn có **${userData.money.toLocaleString('vi-VN')} đồng** mà đòi cược **${amount.toLocaleString('vi-VN')}** à?`);
+    }
+    //luật gắt hơn để tránh bị lạm dụng, nếu muốn chơi lớn thì cứ chơi nhiều ván nhỏ vậy
         if (!cuoc || isNaN(cuoc) || cuoc <= 0) return message.reply(`Cược bao nhiêu tiền? Gõ: \`${prefix}bj <số_tiền>\``);
         if (userData.money < cuoc) return message.reply(`Ví bạn còn có **${userData.money} đồng**, tiền đâu mà đòi chơi sộp?`);
 
