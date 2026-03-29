@@ -1,0 +1,263 @@
+require('dotenv').config(); // Bùa chú giấu Token
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
+const mongoose = require('mongoose');
+const express = require('express');
+
+// --- 1. MÁY THỞ CHO RENDER (Chống ngủ 24/7) ---
+const app = express();
+app.get('/', (req, res) => res.send('Kế toán Địa Đạo đang online và giữ tiền của anh em!'));
+app.listen(process.env.PORT || 3000, () => console.log('[Web] Đã bật máy thở trên port 3000'));
+
+// --- 2. KHỞI TẠO BOT ---
+const client = new Client({
+    intents: [ GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent ]
+});
+
+// --- 3. KẾT NỐI MONGODB ---
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log('[HỆ THỐNG] Đã kết nối kho tiền MongoDB thành công!'))
+    .catch(err => console.error('[LỖI] Không thể kết nối MongoDB:', err));
+
+// Tạo khuôn mẫu sổ nợ trên mây
+const UserSchema = new mongoose.Schema({
+    userId: { type: String, required: true, unique: true },
+    money: { type: Number, default: 0 },
+    lastDaily: { type: Number, default: 0 }
+});
+const User = mongoose.model('User', UserSchema);
+
+client.once('ready', () => {
+    console.log(`[THÀNH CÔNG] Kế toán ${client.user.tag} đã chính thức mở sòng bạc Địa Đạo!`);
+});
+
+// --- 4. HỆ THỐNG LỆNH ---
+client.on('messageCreate', async message => {
+    if (message.author.bot) return;
+
+    const prefix = 'f!';
+    if (!message.content.startsWith(prefix)) return;
+
+    const args = message.content.slice(prefix.length).trim().split(/ +/);
+    const command = args.shift().toLowerCase();
+    const userId = message.author.id;
+
+    // Tự động kiểm tra và tạo ví trên MongoDB cho người nhắn
+    let userData = await User.findOne({ userId });
+    if (!userData) userData = await User.create({ userId });
+
+    // ----- LỆNH NHẬN LƯƠNG HÀNG NGÀY -----
+    if (command === 'daily' || command === 'work') {
+        const cooldownTime = 86400000; // 24 giờ
+        const now = Date.now();
+
+        if (now - userData.lastDaily < cooldownTime) {
+            const timeLeft = cooldownTime - (now - userData.lastDaily);
+            const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+            return message.reply(`Định bòn rút ngân sách à? Phải đợi **${hours} giờ ${minutes} phút** nữa mới được nhận tiếp!`);
+        }
+
+        const luong = Math.floor(Math.random() * 2000) + 1000; 
+        userData.money += luong; 
+        userData.lastDaily = now; 
+        
+        await userData.save(); // Lưu lên mây
+        message.reply(`Bạn vừa điểm danh thành công và nhận được **${luong} đồng**. Tiêu cho tiết kiệm vào! Số dư: **${userData.money} đồng**.`);
+    }
+
+    // ----- LỆNH XEM VÍ -----
+    if (command === 'bal') {
+        message.reply(`Ví của bạn đang có: **${userData.money} đồng**. Nghèo thì ráng gõ f!daily nha!`);
+    }
+
+    // ----- LỆNH ĂN CƯỚP (Luật Gắt) -----
+    if (command === 'rob') {
+        const victim = message.mentions.users.first(); 
+        if (!victim) return message.reply("Bạn định cướp không khí à? Phải tag một người vào! Ví dụ: `f!rob @ai_đó`");
+        if (victim.id === userId) return message.reply("Tự cướp tiền của chính mình? Bạn lú quá rồi!");
+        if (victim.bot) return message.reply("Tha cho bot đi bạn ơi, nó làm gì có tiền mà cướp!");
+
+        // Lấy dữ liệu nạn nhân từ mây
+        let victimData = await User.findOne({ userId: victim.id });
+        if (!victimData) victimData = await User.create({ userId: victim.id });
+
+        if (victimData.money < 100) return message.reply("Người này nghèo rớt mồng tơi, cướp họ mang nghiệp đấy, tha đi!");
+        
+        const percent = (Math.floor(Math.random() * 21) + 10) / 100;
+        const tienDinhCuop = Math.floor(victimData.money * percent);
+        const tienPhat = Math.floor(tienDinhCuop * 0.9);
+
+        if (userData.money < tienPhat) return message.reply(`Để cướp người này, bạn cần ít nhất **${tienPhat} đồng** trong ví (để phòng nộp phạt nếu bị tóm). Hiện tại bạn không đủ!`);
+
+        const isSuccess = Math.random() < 0.4;
+        
+        if (isSuccess) {
+            victimData.money -= tienDinhCuop;
+            userData.money += tienDinhCuop;
+            await victimData.save();
+            await userData.save();
+            message.reply(`Ngon lành! Bạn vừa móc túi ${victim.username} hốt trọn **${tienDinhCuop} đồng**. Chạy mau trước khi cảnh sát tóm!!`);
+        } else {
+            userData.money -= tienPhat;
+            victimData.money += tienPhat;
+            await victimData.save();
+            await userData.save();
+            message.reply(`Úi chà! Bạn thò tay vào túi ${victim.username} định cướp thì bị tóm. Bị đấm sưng mỏ và nộp phạt **${tienPhat} đồng** cho nạn nhân!`);
+        }
+    }
+
+    // ----- LỆNH BLACKJACK -----
+    if (command === 'bj') {
+        const cuoc = parseInt(args[0]); 
+        if (!cuoc || isNaN(cuoc) || cuoc <= 0) return message.reply("Cược bao nhiêu tiền? Gõ: `f!bj <số_tiền>`");
+        if (userData.money < cuoc) return message.reply(`Ví bạn còn có **${userData.money} đồng**, tiền đâu mà đòi chơi sộp?`);
+
+        // Thu tiền cược ngay
+        userData.money -= cuoc;
+        await userData.save();
+
+        const getCard = () => {
+            const suits = ['♠', '♥', '♦', '♣'];
+            const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+            const rank = ranks[Math.floor(Math.random() * ranks.length)];
+            const suit = suits[Math.floor(Math.random() * suits.length)];
+            let value = ['J', 'Q', 'K'].includes(rank) ? 10 : (rank === 'A' ? 11 : parseInt(rank));
+            return { rank, suit, value, display: `\`${rank}${suit}\`` };
+        };
+
+        const calcScore = (hand) => {
+            let score = hand.reduce((a, b) => a + b.value, 0);
+            let aces = hand.filter(c => c.rank === 'A').length;
+            while (score > 21 && aces > 0) { score -= 10; aces--; }
+            return score;
+        };
+
+        let pHand = [getCard(), getCard()];
+        let dHand = [getCard(), getCard()];
+
+        const makeEmbed = (hideDealer = true, status = '🎲 ~ game in progress') => {
+            let dScore = hideDealer ? dHand[0].value : calcScore(dHand);
+            let pScore = calcScore(pHand);
+            let dDisplay = hideDealer ? `${dHand[0].display} \` 🎴 \`` : dHand.map(c=>c.display).join(' ');
+            let pDisplay = pHand.map(c=>c.display).join(' ');
+
+            return new EmbedBuilder()
+                .setColor('#2b2d31')
+                .setAuthor({ name: `${message.author.username}, you bet ${cuoc} to play blackjack`, iconURL: message.author.displayAvatarURL() })
+                .addFields(
+                    { name: `Dealer [${hideDealer ? dScore + '+?' : dScore}]`, value: dDisplay, inline: true },
+                    { name: `${message.author.username} [${pScore}]`, value: pDisplay, inline: true }
+                )
+                .setFooter({ text: status });
+        };
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('hit').setEmoji('👊').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId('stand').setEmoji('🛑').setStyle(ButtonStyle.Danger)
+        );
+
+        const msg = await message.reply({ embeds: [makeEmbed()], components: [row] });
+        const collector = msg.createMessageComponentCollector({ componentType: ComponentType.Button, time: 60000 });
+
+        collector.on('collect', async i => {
+            if (i.user.id !== userId) return i.reply({ content: 'Bàn của người ta, đừng có bấm bậy!', ephemeral: true });
+
+            if (i.customId === 'hit') {
+                pHand.push(getCard());
+                if (calcScore(pHand) > 21) {
+                    collector.stop('busted');
+                } else {
+                    await i.update({ embeds: [makeEmbed()], components: [row] });
+                }
+            } else if (i.customId === 'stand') {
+                collector.stop('stand');
+            }
+        });
+
+        collector.on('end', async (collected, reason) => {
+            let pScore = calcScore(pHand);
+            let dScore = calcScore(dHand);
+            let resultMsg = '';
+
+            if (reason === 'busted') {
+                resultMsg = '💥 BẠN ĐÃ THUA (Lố 21 điểm)! Kế toán lụm tiền!';
+            } else {
+                while (dScore < 17) { dHand.push(getCard()); dScore = calcScore(dHand); }
+
+                if (dScore > 21 || pScore > dScore) {
+                    resultMsg = `🎉 DEALER THUA! Bạn thắng **${cuoc * 2} đồng**!`;
+                    userData.money += cuoc * 2;
+                } else if (dScore > pScore) {
+                    resultMsg = '💸 DEALER THẮNG! Bạn mất sạch tiền cược!';
+                } else {
+                    resultMsg = '🤝 HÒA! Bạn được hoàn lại tiền cược.';
+                    userData.money += cuoc;
+                }
+            }
+            
+            await userData.save(); // LƯU KẾT QUẢ CUỐI CÙNG LÊN MÂY
+
+            const disabledRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('hit').setEmoji('👊').setStyle(ButtonStyle.Secondary).setDisabled(true),
+                new ButtonBuilder().setCustomId('stand').setEmoji('🛑').setStyle(ButtonStyle.Secondary).setDisabled(true)
+            );
+            await msg.edit({ embeds: [makeEmbed(false, resultMsg)], components: [disabledRow] }).catch(()=>{});
+        });
+    }
+
+    // ----- LỆNH CỬA HÀNG ROLE -----
+    if (command === 'shop') {
+        const embed = new EmbedBuilder()
+            .setTitle('🛒 TIỆM TẠP HÓA ĐỊA ĐẠO')
+            .setDescription('Dùng tiền tích góp để mua danh hiệu xịn xò nào bạn ơi!\nChọn món đồ bạn muốn mua ở menu bên dưới nhé.')
+            .setColor('#f1c40f')
+            .setThumbnail(client.user.displayAvatarURL());
+
+        const select = new StringSelectMenuBuilder()
+            .setCustomId('shop_menu')
+            .setPlaceholder('Chọn món hàng bạn muốn mua...')
+            .addOptions(
+                new StringSelectMenuOptionBuilder().setLabel('Role: Dawn').setDescription('Giá: 50,000 đồng').setValue('role_daigia'),
+                new StringSelectMenuOptionBuilder().setLabel('Role: Dusk').setDescription('Giá: 100,000 đồng').setValue('role_trumbai'),
+                new StringSelectMenuOptionBuilder().setLabel('Role: Lọ vương').setDescription('Giá: 200,000 đồng').setValue('role_huy_diet')
+            );
+
+        const row = new ActionRowBuilder().addComponents(select);
+        const response = await message.reply({ embeds: [embed], components: [row] });
+
+        const collector = response.createMessageComponentCollector({ componentType: ComponentType.StringSelect, time: 30000 });
+
+        collector.on('collect', async i => {
+            if (i.user.id !== userId) return i.reply({ content: 'Đi chỗ khác chơi, Shop này của người ta!', ephemeral: true });
+
+            let price = 0;
+            let roleId = '';
+            let roleName = '';
+
+            // NHỚ ĐỔI ID ROLE CỦA BẠN VÀO ĐÂY:
+            if (i.values[0] === 'role_daigia') { price = 50000; roleId = 'ID_ROLE_1_CỦA_BẠN'; roleName = 'Đại Gia Địa Đạo'; } 
+            else if (i.values[0] === 'role_trumbai') { price = 100000; roleId = 'ID_ROLE_2_CỦA_BẠN'; roleName = 'Trùm Sòng Bạc'; } 
+            else if (i.values[0] === 'role_huy_diet') { price = 200000; roleId = 'ID_ROLE_3_CỦA_BẠN'; roleName = 'Kẻ Hủy Diệt Số Dư'; }
+
+            if (userData.money < price) {
+                return i.reply({ content: `Nghèo mà đòi làm sang! Bạn còn thiếu **${price - userData.money} đồng** nữa.`, ephemeral: true });
+            }
+
+            if (i.member.roles.cache.has(roleId)) return i.reply({ content: 'Bạn có cái danh hiệu này rồi, mua làm gì nữa?', ephemeral: true });
+
+            try {
+                userData.money -= price; 
+                await userData.save(); // LƯU VÍ LÊN MÂY
+
+                await i.member.roles.add(roleId); 
+                await i.reply({ content: `🎉 Giao dịch thành công! Bạn đã chi **${price} đồng** để sở hữu danh hiệu **${roleName}**!` });
+            } catch (error) {
+                console.error(error);
+                await i.reply({ content: 'Lỗi rồi! Vui lòng thử lại sau.', ephemeral: true });
+            }
+        });
+    }
+});
+
+// KHÔNG CẦN DÁN TOKEN VÀO ĐÂY NỮA, NÓ TỰ LẤY TỪ FILE .env
+client.login(process.env.TOKEN);
