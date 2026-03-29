@@ -26,7 +26,6 @@ const UserSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true },
     money: { type: Number, default: 0 },
     lastDaily: { type: Number, default: 0 },
-    // --- NGĂN CHỨA POKEMON ---
     pokedex: [{
         pokeId: Number,   
         name: String,     
@@ -38,9 +37,18 @@ const UserSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', UserSchema);
 
-client.once('ready', () => {
+// 2. Khuôn mẫu cấu hình Server (Blacklist kênh)
+const ConfigSchema = new mongoose.Schema({
+    guildId: { type: String, required: true, unique: true },
+    blacklistedChannels: { type: Array, default: [] }
+});
+const Config = mongoose.model('Config', ConfigSchema);
+
+
+client.once('ready', async () => {
     console.log(`[THÀNH CÔNG] Kế toán ${client.user.tag} đã chính thức mở sòng bạc Địa Đạo!`);
 });
+
 
 // --- 4. HỆ THỐNG LỆNH ---
 client.on('messageCreate', async message => {
@@ -589,6 +597,27 @@ client.on('messageCreate', async message => {
             .setThumbnail(message.author.displayAvatarURL()); 
 
         await message.reply({ embeds: [embed] });
+    }
+
+    // ----- QUẢN LÝ BLACKLIST KÊNH (ADMIN ONLY) -----
+    if (command === 'blacklist') {
+        if (!message.member.permissions.has('Administrator')) return;
+
+        const channel = message.mentions.channels.first() || message.channel;
+        let config = await Config.findOne({ guildId: message.guild.id });
+        if (!config) config = await Config.create({ guildId: message.guild.id });
+
+        if (config.blacklistedChannels.includes(channel.id)) {
+            // Nếu đã có thì GỠ RA
+            config.blacklistedChannels = config.blacklistedChannels.filter(id => id !== channel.id);
+            await config.save();
+            return message.reply(`✅ Đã gỡ blacklist cho kênh ${channel}. Bot có thể hoạt động tại đây.`);
+        } else {
+            // Nếu chưa có thì THÊM VÀO
+            config.blacklistedChannels.push(channel.id);
+            await config.save();
+            return message.reply(`🚫 Đã đưa kênh ${channel} vào danh sách đen. Bot sẽ im lặng tại đây.`);
+        }
     }
 });
 client.login(process.env.TOKEN);
