@@ -62,15 +62,15 @@ client.on('messageCreate', async message => {
     // Lấy prefix từ file .env, nếu quên chưa cài thì mặc định là 'f!'
     const prefix = process.env.PREFIX || 'f!';
     if (!message.content.startsWith(prefix)) return;
-    if (!message.content.startsWith(prefix)) return;
 
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const command = args.shift().toLowerCase();
     const userId = message.author.id;
 
-    // Tự động kiểm tra và tạo ví trên MongoDB cho người nhắn
-    let userData = await User.findOne({ userId });
-    if (!userData) userData = await User.create({ userId });
+    // THÊM DÒNG NÀY ĐỂ CHẶN LỆNH TỪ TIN NHẮN RIÊNG (DM)
+if (!message.guild) return;
+
+    
 
     // ==========================================
     // 🛡️ CỔNG BẢO VỆ BLACKLIST (MỚI THÊM)
@@ -83,6 +83,13 @@ client.on('messageCreate', async message => {
             if (!isSudo) return; // Không phải Admin -> Bơ luôn không thèm rep
         }
     }
+
+
+    // Tự động kiểm tra và tạo ví trên MongoDB cho người nhắn
+    let userData = await User.findOne({ userId });
+    if (!userData) userData = await User.create({ userId });
+
+    
     // ==========================================
     // ----- LỆNH NHẬN LƯƠNG HÀNG NGÀY -----
     if (command === 'daily' || command === 'work') {
@@ -270,9 +277,9 @@ client.on('messageCreate', async message => {
             .setCustomId('shop_menu')
             .setPlaceholder('Chọn món hàng bạn muốn mua...')
             .addOptions(
-                new StringSelectMenuOptionBuilder().setLabel('Phắc boiz 😼').setDescription('Giá: 30,000 ${coinEmoji}').setValue('role_phacboiz'),
-                new StringSelectMenuOptionBuilder().setLabel('Chúa tể xamlin    🗡').setDescription('Giá: 100,000 ${coinEmoji}').setValue('role_chuatexmlin'),
-                new StringSelectMenuOptionBuilder().setLabel('Ma Vương chubby').setDescription('Giá: 250.000').setValue('role_mavuongchubby')
+                new StringSelectMenuOptionBuilder().setLabel('Phắc boiz 😼').setDescription(`Giá: 30,000 ${coinEmoji}`).setValue('role_phacboiz'),
+                new StringSelectMenuOptionBuilder().setLabel('Chúa tể xamlin    🗡').setDescription(`Giá: 100,000 ${coinEmoji}`).setValue('role_chuatexmlin'),
+                new StringSelectMenuOptionBuilder().setLabel('Ma Vương chubby').setDescription(`Giá: 250,000 ${coinEmoji}`).setValue('role_mavuongchubby')
             );
 
         const row = new ActionRowBuilder().addComponents(select);
