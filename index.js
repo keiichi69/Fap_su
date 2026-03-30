@@ -1,3 +1,4 @@
+require('./keep_alive.js'); // Bật máy thở để giữ bot luôn online trên Render
 require('dotenv').config(); // Bùa chú giấu Token
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
 const mongoose = require('mongoose');
