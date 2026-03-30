@@ -89,7 +89,7 @@ if (!message.guild) return;
     let userData = await User.findOne({ userId });
     if (!userData) userData = await User.create({ userId });
 
-    
+
     // ==========================================
     // ----- LỆNH NHẬN LƯƠNG HÀNG NGÀY -----
     if (command === 'daily' || command === 'work') {
@@ -277,9 +277,9 @@ if (!message.guild) return;
             .setCustomId('shop_menu')
             .setPlaceholder('Chọn món hàng bạn muốn mua...')
             .addOptions(
-                new StringSelectMenuOptionBuilder().setLabel('Phắc boiz 😼').setDescription(`Giá: 30,000 ${coinEmoji}`).setValue('role_phacboiz'),
-                new StringSelectMenuOptionBuilder().setLabel('Chúa tể xamlin    🗡').setDescription(`Giá: 100,000 ${coinEmoji}`).setValue('role_chuatexmlin'),
-                new StringSelectMenuOptionBuilder().setLabel('Ma Vương chubby').setDescription(`Giá: 250,000 ${coinEmoji}`).setValue('role_mavuongchubby')
+                new StringSelectMenuOptionBuilder().setLabel('Phắc boiz 😼').setDescription(`Giá: 30,000 đ`).setEmoji('1488017564817817711').setValue('role_phacboiz'),
+                new StringSelectMenuOptionBuilder().setLabel('Chúa tể xamlin    🗡').setDescription(`Giá: 100,000 đ`).setEmoji('1488017564817817711').setValue('role_chuatexmlin'),
+                new StringSelectMenuOptionBuilder().setLabel('Ma Vương chubby').setDescription(`Giá: 250,000 đ`).setEmoji('1488017564817817711').setValue('role_mavuongchubby')
             );
 
         const row = new ActionRowBuilder().addComponents(select);
