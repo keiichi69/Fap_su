@@ -1,4 +1,4 @@
-require('./keep_alive.js'); // Bật máy thở để giữ bot luôn online trên Render
+
 require('dotenv').config(); // Bùa chú giấu Token
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
 const mongoose = require('mongoose');
@@ -72,6 +72,18 @@ client.on('messageCreate', async message => {
     let userData = await User.findOne({ userId });
     if (!userData) userData = await User.create({ userId });
 
+    // ==========================================
+    // 🛡️ CỔNG BẢO VỆ BLACKLIST (MỚI THÊM)
+    // ==========================================
+    if (message.guild) {
+        let config = await Config.findOne({ guildId: message.guild.id });
+        if (config && config.blacklistedChannels.includes(message.channel.id)) {
+            // Nếu kênh bị cấm, xem thằng gõ lệnh có phải Admin không
+            const isSudo = message.member ? message.member.permissions.has('Administrator') : false;
+            if (!isSudo) return; // Không phải Admin -> Bơ luôn không thèm rep
+        }
+    }
+    // ==========================================
     // ----- LỆNH NHẬN LƯƠNG HÀNG NGÀY -----
     if (command === 'daily' || command === 'work') {
         const cooldownTime = 86400000; // 24 giờ
@@ -136,27 +148,26 @@ client.on('messageCreate', async message => {
     // ----- LỆNH BLACKJACK -----
     if (command === 'bj') {
         const cuoc = parseInt(args[0]); 
-        // --- KHU VỰC GIỚI HẠN CƯỢC (BẢN ĐÃ BỎ MIN) ---
-    const MAX_BET = 250000; // Vẫn nên giữ cái trần 500k để bảo vệ sòng bạc
+        
+        // --- KHU VỰC GIỚI HẠN CƯỢC (BẢN CHUẨN) ---
+        const MAX_BET = 250000; 
 
-    if (isNaN(amount) || amount <= 0) {
-        return message.reply(`🚫 Nhập số tiền cược đàng hoàng vào sếp ơi!`);
-    }
+        if (isNaN(cuoc) || cuoc <= 0) {
+            return message.reply(`🚫 Nhập số tiền cược đàng hoàng vào sếp ơi!`);
+        }
 
-    if (amount > MAX_BET) {
-        return message.reply(`⚠️ Sòng bạc chỉ nhận tối đa **${MAX_BET.toLocaleString('vi-VN')} ${coinEmoji}** mỗi ván!`);
-    }
+        if (cuoc > MAX_BET) {
+            return message.reply(`⚠️ Sòng bạc chỉ nhận tối đa **${MAX_BET.toLocaleString('vi-VN')} ${coinEmoji}** mỗi ván!`);
+        }
 
-    if (userData.money < amount) {
-        return message.reply(`Ví còn có **${userData.money.toLocaleString('vi-VN')} ${coinEmoji}** mà đòi cược **${amount.toLocaleString('vi-VN')}** à?`);
-    }
-    //luật gắt hơn để tránh bị lạm dụng, nếu muốn chơi lớn thì cứ chơi nhiều ván nhỏ vậy
-        if (!cuoc || isNaN(cuoc) || cuoc <= 0) return message.reply(`Cược bao nhiêu tiền? Gõ: \`${prefix}bj <số_tiền>\``);
-        if (userData.money < cuoc) return message.reply(`Ví bạn còn có **${userData.money} ${coinEmoji}**, tiền đâu mà đòi chơi ?`);
+        if (userData.money < cuoc) {
+            return message.reply(`Ví còn có **${userData.money.toLocaleString('vi-VN')} ${coinEmoji}** mà đòi cược **${cuoc.toLocaleString('vi-VN')}** à?`);
+        }
 
         // Thu tiền cược ngay
         userData.money -= cuoc;
         await userData.save();
+        
 
         const getCard = () => {
             const suits = ['♠', '♥', '♦', '♣'];
@@ -305,7 +316,7 @@ client.on('messageCreate', async message => {
     // ==========================================
     
     // Kiểm tra xem người gõ lệnh có quyền Quản trị viên không
-    const isAdmin = message.member.permissions.has('Administrator');
+    const isAdmin = message.member ? message.member.permissions.has('Administrator') : false;
 
     // 1. Lệnh Bơm Tiền (f!addmoney @user số_tiền)
     if (command === 'addmoney') {
