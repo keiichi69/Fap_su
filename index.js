@@ -4,6 +4,10 @@ const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder
 const mongoose = require('mongoose');
 const express = require('express');
 const axios = require('axios'); 
+//money
+// Thay bằng ID thật của ông lấy ở Bước 1 nhé
+const coinEmoji = '<:coinn:1488017564817817711>'; 
+const cashEmoji = '<:moneyy:1488016482695643206> ';
 
 
 // --- 1. MÁY THỞ CHO RENDER (Chống ngủ 24/7) ---
@@ -85,12 +89,12 @@ client.on('messageCreate', async message => {
         userData.lastDaily = now; 
         
         await userData.save(); // Lưu lên mây
-        message.reply(`Bạn vừa điểm danh thành công và nhận được **${luong} đồng**. Số dư: **${userData.money} đồng**.`);
+        message.reply(`Bạn vừa điểm danh thành công và nhận được **${luong} ${coinEmoji}**. Số dư: **${userData.money} ${coinEmoji}**.`);
     }
 
     // ----- LỆNH XEM VÍ -----
     if (command === 'bal') {
-        message.reply(`Ví của bạn đang có: **${userData.money} đồng**. Đi làm chăm chỉ hoặc chơi game để kiếm thêm tiền nhé!`);
+        message.reply(`Ví của bạn đang có: **${userData.money} ${coinEmoji}**. Đi làm chăm chỉ hoặc chơi game để kiếm thêm tiền nhé!`);
     }
 
     // ----- LỆNH ĂN CƯỚP (Luật Gắt) -----
@@ -110,7 +114,7 @@ client.on('messageCreate', async message => {
         const tienDinhCuop = Math.floor(victimData.money * percent);
         const tienPhat = Math.floor(tienDinhCuop * 0.9);
 
-        if (userData.money < tienPhat) return message.reply(`Để cướp người này, bạn cần ít nhất **${tienPhat} đồng** trong ví (để phòng nộp phạt nếu bị tóm). Hiện tại bạn không đủ!`);
+        if (userData.money < tienPhat) return message.reply(`Để cướp người này, bạn cần ít nhất **${tienPhat} ${coinEmoji}** trong ví (để phòng nộp phạt nếu bị tóm). Hiện tại bạn không đủ!`);
 
         const isSuccess = Math.random() < 0.4;
         
@@ -119,13 +123,13 @@ client.on('messageCreate', async message => {
             userData.money += tienDinhCuop;
             await victimData.save();
             await userData.save();
-            message.reply(`Ngon lành! Bạn vừa móc túi ${victim.username} hốt trọn **${tienDinhCuop} đồng**. Chạy mau trước khi cảnh sát tóm!!`);
+            message.reply(`Ngon lành! Bạn vừa móc túi ${victim.username} hốt trọn **${tienDinhCuop} ${coinEmoji}**. Chạy mau trước khi cảnh sát tóm!!`);
         } else {
             userData.money -= tienPhat;
             victimData.money += tienPhat;
             await victimData.save();
             await userData.save();
-            message.reply(`Úi chà! Bạn thò tay vào túi ${victim.username} định cướp thì bị tóm. Bị ăn 1 chày và nộp phạt **${tienPhat} đồng** cho nạn nhân!`);
+            message.reply(`Úi chà! Bạn thò tay vào túi ${victim.username} định cướp thì bị tóm. Bị ăn 1 chày và nộp phạt **${tienPhat} ${coinEmoji}** cho nạn nhân!`);
         }
     }
 
@@ -140,15 +144,15 @@ client.on('messageCreate', async message => {
     }
 
     if (amount > MAX_BET) {
-        return message.reply(`⚠️ Sòng bạc chỉ nhận tối đa **${MAX_BET.toLocaleString('vi-VN')} đồng** mỗi ván!`);
+        return message.reply(`⚠️ Sòng bạc chỉ nhận tối đa **${MAX_BET.toLocaleString('vi-VN')} ${coinEmoji}** mỗi ván!`);
     }
 
     if (userData.money < amount) {
-        return message.reply(`Ví còn có **${userData.money.toLocaleString('vi-VN')} đồng** mà đòi cược **${amount.toLocaleString('vi-VN')}** à?`);
+        return message.reply(`Ví còn có **${userData.money.toLocaleString('vi-VN')} ${coinEmoji}** mà đòi cược **${amount.toLocaleString('vi-VN')}** à?`);
     }
     //luật gắt hơn để tránh bị lạm dụng, nếu muốn chơi lớn thì cứ chơi nhiều ván nhỏ vậy
         if (!cuoc || isNaN(cuoc) || cuoc <= 0) return message.reply(`Cược bao nhiêu tiền? Gõ: \`${prefix}bj <số_tiền>\``);
-        if (userData.money < cuoc) return message.reply(`Ví bạn còn có **${userData.money} đồng**, tiền đâu mà đòi chơi ?`);
+        if (userData.money < cuoc) return message.reply(`Ví bạn còn có **${userData.money} ${coinEmoji}**, tiền đâu mà đòi chơi ?`);
 
         // Thu tiền cược ngay
         userData.money -= cuoc;
@@ -223,7 +227,7 @@ client.on('messageCreate', async message => {
                 while (dScore < 17) { dHand.push(getCard()); dScore = calcScore(dHand); }
 
                 if (dScore > 21 || pScore > dScore) {
-                    resultMsg = `🎉 DEALER THUA! Bạn thắng **${cuoc * 2} đồng**!`;
+                    resultMsg = `🎉 DEALER THUA! Bạn thắng **${cuoc * 2} ${coinEmoji}**!`;
                     userData.money += cuoc * 2;
                 } else if (dScore > pScore) {
                     resultMsg = '💸 DEALER THẮNG! Bạn mất sạch tiền cược!';
@@ -255,8 +259,8 @@ client.on('messageCreate', async message => {
             .setCustomId('shop_menu')
             .setPlaceholder('Chọn món hàng bạn muốn mua...')
             .addOptions(
-                new StringSelectMenuOptionBuilder().setLabel('Phắc boiz 😼').setDescription('Giá: 30,000 đồng').setValue('role_phacboiz'),
-                new StringSelectMenuOptionBuilder().setLabel('Chúa tể xamlin    🗡').setDescription('Giá: 100,000 đồng').setValue('role_chuatexmlin'),
+                new StringSelectMenuOptionBuilder().setLabel('Phắc boiz 😼').setDescription('Giá: 30,000 ${coinEmoji}').setValue('role_phacboiz'),
+                new StringSelectMenuOptionBuilder().setLabel('Chúa tể xamlin    🗡').setDescription('Giá: 100,000 ${coinEmoji}').setValue('role_chuatexmlin'),
                 new StringSelectMenuOptionBuilder().setLabel('Ma Vương chubby').setDescription('Giá: 250.000').setValue('role_mavuongchubby')
             );
 
@@ -278,7 +282,7 @@ client.on('messageCreate', async message => {
             else if (i.values[0] === 'role_mavuongchubby') { price = 250000; roleId = '1487855184230224002'; roleName = 'Ma Vương Chubby'; }
 
             if (userData.money < price) {
-                return i.reply({ content: `Chú em quá nghèo,chú em còn thiếu **${price - userData.money} đồng** nữa.`, ephemeral: true });
+                return i.reply({ content: `Chú em quá nghèo,chú em còn thiếu **${price - userData.money} ${coinEmoji}** nữa.`, ephemeral: true });
             }
 
             if (i.member.roles.cache.has(roleId)) return i.reply({ content: 'Bạn đã sỡ hữu role này,vui lòng chọn role khác!', ephemeral: true });
@@ -288,7 +292,7 @@ client.on('messageCreate', async message => {
                 await userData.save(); // LƯU VÍ LÊN MÂY
 
                 await i.member.roles.add(roleId); 
-                await i.reply({ content: `🎉 Giao dịch thành công! Bạn đã chi **${price} đồng** để mua role **${roleName}**!` });
+                await i.reply({ content: `🎉 Giao dịch thành công! Bạn đã chi **${price} ${coinEmoji}** để mua role **${roleName}**!` });
             } catch (error) {
                 console.error(error);
                 await i.reply({ content: 'Lỗi rồi! Vui lòng thử lại sau.', ephemeral: true });
@@ -321,7 +325,7 @@ client.on('messageCreate', async message => {
         targetData.money += amount;
         await targetData.save(); // Cập nhật lên MongoDB
 
-        message.reply(`💸 **BÙM!** Tổng tài vừa bơm nóng **${amount} đồng** vào két của ${target.username}. Tổng tài sản: **${targetData.money} đồng**.`);
+        message.reply(`💸 **BÙM!** Tổng tài vừa bơm nóng **${amount} ${coinEmoji}** vào két của ${target.username}. Tổng tài sản: **${targetData.money} ${coinEmoji}**.`);
     }
 
     // 2. Lệnh Tịch Thu Gia Sản (f!resetmoney @user)
@@ -337,7 +341,7 @@ client.on('messageCreate', async message => {
         targetData.money = 0; // Chém thẳng tay về 0
         await targetData.save(); // Cập nhật lên MongoDB
 
-        message.reply(`🔥 **Clearrr!** Toàn bộ tài sản của ${target.username} đã bị kho bạc nhà nước tịch thu. Số dư hiện tại: **0 đồng**! Trắng tay!`);
+        message.reply(`🔥 **Clearrr!** Toàn bộ tài sản của ${target.username} đã bị kho bạc nhà nước tịch thu. Số dư hiện tại: **0 ${coinEmoji}**! Trắng tay!`);
     }
 
 
@@ -347,7 +351,7 @@ client.on('messageCreate', async message => {
         const topUsers = await User.find({ money: { $gt: 0 } }).sort({ money: -1 }).limit(10);
 
         if (topUsers.length === 0) {
-            return message.reply("Chúng ta quá nghèo, chưa có ai kiếm được đồng nào để lên tivi cả!");
+            return message.reply("Chúng ta quá nghèo, chưa có ai kiếm được ${coinEmoji} nào để lên tivi cả!");
         }
 
         const embed = new EmbedBuilder()
@@ -366,7 +370,7 @@ client.on('messageCreate', async message => {
 
             // Dùng <@ID> để Discord tự động hiển thị tên người dùng mà không Ping làm phiền họ
             // Hàm toLocaleString('vi-VN') giúp số tiền có dấu chấm cho dễ đọc (VD: 100.000 thay vì 100000)
-            leaderboard += `${medal} **#${i + 1}** | <@${topUsers[i].userId}> ➪ **${topUsers[i].money.toLocaleString('vi-VN')} đồng**\n\n`;
+            leaderboard += `${medal} **#${i + 1}** | <@${topUsers[i].userId}> ➪ **${topUsers[i].money.toLocaleString('vi-VN')} ${coinEmoji}**\n\n`;
         }
 
         embed.addFields({ name: '--- Danh Sách Tỷ Phú ---', value: leaderboard });
@@ -386,7 +390,7 @@ client.on('messageCreate', async message => {
 
         // Kiểm tra số dư người gửi
         if (userData.money < amount) {
-            return message.reply(`Ví bạn chỉ còn **${userData.money.toLocaleString('vi-VN')} đồng**, không đủ ngân sách để chuyển **${amount.toLocaleString('vi-VN')} đồng**!`);
+            return message.reply(`Ví bạn chỉ còn **${userData.money.toLocaleString('vi-VN')} ${coinEmoji}**, không đủ ngân sách để chuyển **${amount.toLocaleString('vi-VN')} ${coinEmoji}**!`);
         }
 
         // Áp dụng thuế phí 2% để kiểm soát lạm phát vĩ mô
@@ -404,7 +408,7 @@ client.on('messageCreate', async message => {
         await userData.save();
         await targetData.save();
 
-        message.reply(`💸 Giao dịch thành công! Bạn đã chuyển **${amount.toLocaleString('vi-VN')} đồng** cho ${target.username}.\n*(Ngân hàng Trung ương thu phí giao dịch 2% là **${tax.toLocaleString('vi-VN')} đồng**, người nhận thực lãnh **${actualReceived.toLocaleString('vi-VN')} đồng**).*`);
+        message.reply(`💸 Giao dịch thành công! Bạn đã chuyển **${amount.toLocaleString('vi-VN')} ${coinEmoji}** cho ${target.username}.\n*(Ngân hàng Trung ương thu phí giao dịch 2% là **${tax.toLocaleString('vi-VN')} ${coinEmoji}**, người nhận thực lãnh **${actualReceived.toLocaleString('vi-VN')} ${coinEmoji}**).*`);
     }
     // ----- LỆNH HƯỚNG DẪN (Bản Prefix Động) -----
     if (command === 'help') {
@@ -445,7 +449,7 @@ client.on('messageCreate', async message => {
         const catchCost = 10000; // Giá mỗi lần quay (Hút máu mạnh vào)
 
         if (userData.money < catchCost) {
-            return message.reply(`Nghèo mà đòi làm Huấn luyện viên? Cần **${catchCost.toLocaleString('vi-VN')} đồng** để mua Ball!`);
+            return message.reply(`Nghèo mà đòi làm Huấn luyện viên? Cần **${catchCost.toLocaleString('vi-VN')} ${coinEmoji}** để mua Ball!`);
         }
 
         const msg = await message.reply('🎲 Đang ném Ball, cầu nguyện nhân phẩm đi...');
@@ -495,7 +499,7 @@ client.on('messageCreate', async message => {
             // Tạo bảng thông báo trúng thưởng rực rỡ
             const embed = new EmbedBuilder()
                 .setTitle(`🎉 BẮT ĐƯỢC POKEMON! 🎉`)
-                .setDescription(`Bạn vừa chi **${catchCost.toLocaleString('vi-VN')} đồng** và nhận được:`)
+                .setDescription(`Bạn vừa chi **${catchCost.toLocaleString('vi-VN')} ${coinEmoji}** và nhận được:`)
                 .addFields(
                     { name: `Tên: ${pokeName}`, value: `**BST:** ${bst}`, inline: true },
                     { name: `Độ hiếm: ${rarity}`, value: `---`, inline: true },
@@ -573,7 +577,7 @@ client.on('messageCreate', async message => {
 
         await userData.save(); // Lưu lên mây
 
-        message.reply(`💸 Giao dịch thành công! Bạn vừa bán thẻ bài **${pokeToSell.name}** và nhận được **${sellPrice.toLocaleString('vi-VN')} đồng**.`);
+        message.reply(`💸 Giao dịch thành công! Bạn vừa bán thẻ bài **${pokeToSell.name}** và nhận được **${sellPrice.toLocaleString('vi-VN')} ${coinEmoji}**.`);
     }
     // ----- LỆNH FLEX POKEMON (Tìm theo STT hoặc TÊN) -----
     if (command === 'flex' || command === 'show') {
