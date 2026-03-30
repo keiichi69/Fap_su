@@ -631,24 +631,58 @@ client.on('messageCreate', async message => {
         await message.reply({ embeds: [embed] });
     }
 
-    // ----- QUẢN LÝ BLACKLIST KÊNH (ADMIN ONLY) -----
-    if (command === 'blacklist') {
-        if (!message.member.permissions.has('Administrator')) return;
+    // ----- QUẢN LÝ BLACKLIST KÊNH (BẢN NÂNG CẤP PRO) -----
+    if (command === 'blacklist' || command === 'bl') {
+        // Kiểm tra quyền Admin
+        if (!message.member.permissions.has('Administrator')) {
+            return message.reply("🚫 Chỉ các sếp (Admin) mới có quyền khóa mõm bot nhé!");
+        }
 
-        const channel = message.mentions.channels.first() || message.channel;
+        // Lấy dữ liệu server từ Database
         let config = await Config.findOne({ guildId: message.guild.id });
         if (!config) config = await Config.create({ guildId: message.guild.id });
 
+        const action = args[0] ? args[0].toLowerCase() : null;
+
+        // TÍNH NĂNG 1: Xem danh sách kênh bị cấm (f!blacklist list)
+        if (action === 'list') {
+            if (config.blacklistedChannels.length === 0) {
+                return message.reply("✅ Bot hiện đang tự do bay nhảy, chưa bị cấm ở kênh nào cả.");
+            }
+
+            // Chuyển mảng ID thành định dạng Tag kênh của Discord (<#id>)
+            const list = config.blacklistedChannels.map(id => `• <#${id}>`).join('\n');
+            
+            const embed = new EmbedBuilder()
+                .setTitle('🚫 DANH SÁCH KÊNH CẤM BOT')
+                .setColor('#e74c3c') // Màu đỏ cảnh báo
+                .setDescription(`Con bot đang bị "khóa mõm" tại các kênh sau:\n\n${list}`)
+                .setFooter({ text: `Gõ ${prefix}blacklist để bật/tắt cấm kênh hiện tại` });
+            
+            return message.reply({ embeds: [embed] });
+        }
+
+        // TÍNH NĂNG 2: Ân xá toàn bộ (f!blacklist clear)
+        if (action === 'clear') {
+            config.blacklistedChannels = []; // Xóa trắng mảng
+            await config.save();
+            return message.reply("✅ Đã ân xá cho toàn bộ các kênh! Bot có thể hóng hớt ở mọi nơi.");
+        }
+
+        // TÍNH NĂNG 3: Thêm/Xóa kênh lẻ (Hoạt động như cũ nhưng mượt hơn)
+        // Ưu tiên kênh được tag, nếu không tag thì lấy kênh hiện tại
+        const channel = message.mentions.channels.first() || message.channel;
+
         if (config.blacklistedChannels.includes(channel.id)) {
-            // Nếu đã có thì GỠ RA
+            // Nếu kênh đã có trong danh sách -> GỠ RA
             config.blacklistedChannels = config.blacklistedChannels.filter(id => id !== channel.id);
             await config.save();
-            return message.reply(`✅ Đã gỡ blacklist cho kênh ${channel}. Bot có thể hoạt động tại đây.`);
+            return message.reply(`✅ Đã gỡ lệnh cấm cho kênh ${channel}. Bot sẽ lại hóng hớt ở đây.`);
         } else {
-            // Nếu chưa có thì THÊM VÀO
+            // Nếu kênh chưa có -> THÊM VÀO
             config.blacklistedChannels.push(channel.id);
             await config.save();
-            return message.reply(`🚫 Đã đưa kênh ${channel} vào danh sách đen. Bot sẽ im lặng tại đây.`);
+            return message.reply(`🚫 Đã "khóa mõm" bot tại kênh ${channel}. Anh em cứ làm việc nghiêm túc nhé!`);
         }
     }
 });
